@@ -285,7 +285,7 @@
                 <b>Payment Accounts:</b><br>
                 • <b>Telebirr:</b> 0963052077<br>
                 • <b>Sinqee Bank:</b> 1036696630101<br><br>
-                Transfer funds to one of the accounts above and submit your Transaction ID / Receipt info below for verification.
+                Transfer funds first, then provide your reference code below. The bot will automatically verify it.
             </div>
             <div class="form-group">
                 <label>Select Payment Method</label>
@@ -299,12 +299,12 @@
                 <input type="number" id="depositAmount" placeholder="e.g. 50" min="10">
             </div>
             <div class="form-group">
-                <label>Transaction ID / Receipt No</label>
-                <input type="text" id="depositTxId" placeholder="e.g. TXN12345678">
+                <label>Receipt Reference Code / TXN ID</label>
+                <input type="text" id="depositTxId" placeholder="e.g. BC12345678">
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeModal('depositModal')">Cancel</button>
-                <button class="btn-primary" onclick="handleDeposit()">Submit Request</button>
+                <button class="btn-primary" onclick="handleDeposit()">Verify & Deposit</button>
             </div>
         </div>
     </div>
@@ -336,7 +336,6 @@
     </div>
 
     <script>
-        // Initialize Telegram WebApp hooks if available
         let tg = window.Telegram?.WebApp;
         if (tg) {
             tg.expand();
@@ -345,26 +344,18 @@
         let balance = 50.00;
         let currentRotation = 0;
         let isSpinning = false;
-
-        // Possible rewards corresponding to wheel segments (6 segments)
         const rewards = [0, 5, 10, 20, 50, 100];
 
         function updateUI() {
             document.getElementById('balance').innerText = balance.toFixed(2);
         }
 
-        function openModal(modalId) {
-            document.getElementById(modalId).style.display = 'flex';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
+        function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
+        function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
 
         function spinWheel() {
             const spinCost = 5;
             const messageEl = document.getElementById('message');
-
             if (isSpinning) return;
 
             if (balance < spinCost) {
@@ -387,9 +378,7 @@
             const randomOffset = degreesPerSegment / 2; 
             
             currentRotation += extraRounds + (360 - (currentRotation % 360)) + (360 - (targetDegree + randomOffset));
-
-            const wheel = document.getElementById('wheel');
-            wheel.style.transform = `rotate(${currentRotation}deg)`;
+            document.getElementById('wheel').style.transform = `rotate(${currentRotation}deg)`;
 
             setTimeout(() => {
                 isSpinning = false;
@@ -408,23 +397,52 @@
             }, 4000);
         }
 
-        function handleDeposit() {
+        async function handleDeposit() {
+            const method = document.getElementById('depositMethod').value;
             const amount = parseFloat(document.getElementById('depositAmount').value);
-            const txId = document.getElementById('depositTxId').value;
+            const txId = document.getElementById('depositTxId').value.trim();
+            const messageEl = explicitMessageElement = document.getElementById('message');
 
             if (!amount || amount <= 0 || !txId) {
-                alert('Please enter a valid amount and transaction reference ID.');
+                alert('Please enter a valid amount and transaction reference code.');
                 return;
             }
 
-            // In a live system, this sends data to your backend bot to verify receipt.
             closeModal('depositModal');
+            messageEl.style.color = 'var(--text-secondary)';
+            messageEl.innerText = 'Checking transaction reference with bank/telebirr...';
+
+            try {
+                // Replace with your actual backend URL running the verification script below
+                const response = await fetch('https://YOUR-BACKEND-SERVER.com/api/verify-deposit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: tg?.initDataUnsafe?.user?.id || 'test_user',
+                        method: method,
+                        amount: amount,
+                        txId: txId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    balance += amount;
+                    updateUI();
+                    messageEl.style.color = 'var(--accent)';
+                    messageEl.innerText = `Deposit Verified! +${amount} ETB added successfully.`;
+                } else {
+                    messageEl.style.color = 'var(--danger)';
+                    messageEl.innerText = `Deposit Rejected: ${result.message || 'Invalid or already used reference code.'}`;
+                }
+            } catch (error) {
+                messageEl.style.color = 'var(--danger)';
+                messageEl.innerText = 'Verification failed. Server error or invalid code.';
+            }
+
             document.getElementById('depositAmount').value = '';
             document.getElementById('depositTxId').value = '';
-            
-            const messageEl = document.getElementById('message');
-            messageEl.style.color = 'var(--accent)';
-            messageEl.innerText = 'Deposit submitted! Pending verification.';
         }
 
         function handleWithdraw() {
