@@ -87,8 +87,8 @@
 
         .wheel-container {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 200px;
+            height: 200px;
             margin: 0 auto 20px auto;
         }
 
@@ -144,6 +144,40 @@
             cursor: not-allowed;
         }
 
+        /* History Section */
+        .history-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-card h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 6px;
+        }
+
+        .history-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .history-item.deposit { color: var(--accent); }
+        .history-item.withdraw { color: #f59e0b; }
+        .history-item.rejected { color: var(--danger); }
+
         /* Modals / Menus */
         .modal {
             display: none;
@@ -191,7 +225,7 @@
         }
 
         .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             text-align: left;
         }
 
@@ -199,22 +233,24 @@
             display: block;
             font-size: 12px;
             color: var(--text-secondary);
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
-        .form-group input, .form-group select {
+        .form-group input, .form-group select, .form-group textarea {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border-radius: 8px;
             border: 1px solid var(--text-secondary);
             background: var(--bg-color);
             color: var(--text-color);
             box-sizing: border-box;
+            font-family: inherit;
         }
 
         .modal-actions {
             display: flex;
             gap: 10px;
+            margin-top: 14px;
         }
 
         .btn-primary {
@@ -241,7 +277,7 @@
 
         #message {
             margin-top: 12px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             min-height: 20px;
         }
@@ -275,6 +311,14 @@
             <button class="spin-btn" id="spinBtn" onclick="spinWheel()">SPIN NOW (5 ETB)</button>
             <div id="message"></div>
         </div>
+
+        <!-- History Log Section -->
+        <div class="history-card">
+            <h4>Transaction History</h4>
+            <div class="history-list" id="historyList">
+                <div class="history-item" style="color: var(--text-secondary);">No transactions yet</div>
+            </div>
+        </div>
     </div>
 
     <!-- Deposit Modal -->
@@ -282,10 +326,10 @@
         <div class="modal-content">
             <h3>Deposit Birr</h3>
             <div class="instruction-box">
-                <b>Payment Accounts:</b><br>
+                <b>Send to:</b><br>
                 • <b>Telebirr:</b> 0963052077<br>
                 • <b>Sinqee Bank:</b> 1036696630101<br><br>
-                Transfer funds first, then provide your reference code below. The bot will automatically verify it.
+                Paste your full transaction message/SMS receipt text below for automatic verification.
             </div>
             <div class="form-group">
                 <label>Select Payment Method</label>
@@ -295,12 +339,12 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Amount Sent (ETB)</label>
+                <label>Amount (ETB)</label>
                 <input type="number" id="depositAmount" placeholder="e.g. 50" min="10">
             </div>
             <div class="form-group">
-                <label>Receipt Reference Code / TXN ID</label>
-                <input type="text" id="depositTxId" placeholder="e.g. BC12345678">
+                <label>Paste Receipt Text / Reference SMS</label>
+                <textarea id="depositReceiptText" rows="3" placeholder="e.g. Total 50.00 Birr transferred successfully. Transaction ID: BC12345678..."></textarea>
             </div>
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeModal('depositModal')">Cancel</button>
@@ -322,153 +366,4 @@
             </div>
             <div class="form-group">
                 <label>Account / Phone Number</label>
-                <input type="text" id="withdrawAccount" placeholder="09xxxxxxxx or Account No">
-            </div>
-            <div class="form-group">
-                <label>Amount (ETB)</label>
-                <input type="number" id="withdrawAmount" placeholder="e.g. 50" min="20">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="closeModal('withdrawModal')">Cancel</button>
-                <button class="btn-primary" onclick="handleWithdraw()">Request</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.expand();
-        }
-
-        let balance = 50.00;
-        let currentRotation = 0;
-        let isSpinning = false;
-        const rewards = [0, 5, 10, 20, 50, 100];
-
-        function updateUI() {
-            document.getElementById('balance').innerText = balance.toFixed(2);
-        }
-
-        function openModal(modalId) { document.getElementById(modalId).style.display = 'flex'; }
-        function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
-
-        function spinWheel() {
-            const spinCost = 5;
-            const messageEl = document.getElementById('message');
-            if (isSpinning) return;
-
-            if (balance < spinCost) {
-                messageEl.style.color = 'var(--danger)';
-                messageEl.innerText = 'Insufficient balance! Please deposit.';
-                return;
-            }
-
-            balance -= spinCost;
-            updateUI();
-            isSpinning = true;
-            document.getElementById('spinBtn').disabled = true;
-            messageEl.style.color = 'var(--text-color)';
-            messageEl.innerText = 'Spinning... Good luck!';
-
-            const prizeIndex = Math.floor(Math.random() * rewards.length);
-            const degreesPerSegment = 360 / rewards.length;
-            const extraRounds = 360 * 6;
-            const targetDegree = prizeIndex * degreesPerSegment;
-            const randomOffset = degreesPerSegment / 2; 
-            
-            currentRotation += extraRounds + (360 - (currentRotation % 360)) + (360 - (targetDegree + randomOffset));
-            document.getElementById('wheel').style.transform = `rotate(${currentRotation}deg)`;
-
-            setTimeout(() => {
-                isSpinning = false;
-                document.getElementById('spinBtn').disabled = false;
-                const wonAmount = rewards[prizeIndex];
-                balance += wonAmount;
-                updateUI();
-
-                if (wonAmount > 0) {
-                    messageEl.style.color = 'var(--accent)';
-                    messageEl.innerText = `Congratulations! You won ${wonAmount} ETB! 🎉`;
-                } else {
-                    messageEl.style.color = 'var(--danger)';
-                    messageEl.innerText = 'Oops! Better luck next time.';
-                }
-            }, 4000);
-        }
-
-        async function handleDeposit() {
-            const method = document.getElementById('depositMethod').value;
-            const amount = parseFloat(document.getElementById('depositAmount').value);
-            const txId = document.getElementById('depositTxId').value.trim();
-            const messageEl = explicitMessageElement = document.getElementById('message');
-
-            if (!amount || amount <= 0 || !txId) {
-                alert('Please enter a valid amount and transaction reference code.');
-                return;
-            }
-
-            closeModal('depositModal');
-            messageEl.style.color = 'var(--text-secondary)';
-            messageEl.innerText = 'Checking transaction reference with bank/telebirr...';
-
-            try {
-                // Replace with your actual backend URL running the verification script below
-                const response = await fetch('https://YOUR-BACKEND-SERVER.com/api/verify-deposit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: tg?.initDataUnsafe?.user?.id || 'test_user',
-                        method: method,
-                        amount: amount,
-                        txId: txId
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    balance += amount;
-                    updateUI();
-                    messageEl.style.color = 'var(--accent)';
-                    messageEl.innerText = `Deposit Verified! +${amount} ETB added successfully.`;
-                } else {
-                    messageEl.style.color = 'var(--danger)';
-                    messageEl.innerText = `Deposit Rejected: ${result.message || 'Invalid or already used reference code.'}`;
-                }
-            } catch (error) {
-                messageEl.style.color = 'var(--danger)';
-                messageEl.innerText = 'Verification failed. Server error or invalid code.';
-            }
-
-            document.getElementById('depositAmount').value = '';
-            document.getElementById('depositTxId').value = '';
-        }
-
-        function handleWithdraw() {
-            const amount = parseFloat(document.getElementById('withdrawAmount').value);
-            const account = document.getElementById('withdrawAccount').value;
-
-            if (!amount || amount <= 0 || !account) {
-                alert('Please fill in all withdrawal details properly.');
-                return;
-            }
-
-            if (amount > balance) {
-                alert('Withdrawal amount exceeds your current balance.');
-                return;
-            }
-
-            balance -= amount;
-            updateUI();
-            closeModal('withdrawModal');
-            document.getElementById('withdrawAmount').value = '';
-            document.getElementById('withdrawAccount').value = '';
-            
-            const messageEl = document.getElementById('message');
-            messageEl.style.color = 'var(--accent)';
-            messageEl.innerText = `Withdrawal request of ${amount} ETB submitted!`;
-        }
-    </script>
-</body>
-</html>
+                <input type="text" id="withdrawAccount" placeholder="09
