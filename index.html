@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birr Spin & Win Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #22c55e;
+            --accent-hover: #16a34a;
+            --text-color: #f8fafc;
+            --text-secondary: #94a3b8;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .balance-title {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .balance-amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            background: var(--card-bg);
+            border: 1px solid var(--accent);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-small:hover {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* Game Section */
+        .game-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            margin: 0 auto 20px auto;
+        }
+
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 6px solid var(--accent);
+            position: relative;
+            transition: transform 4s cubic-bezier(0.15, 0.95, 0.15, 1);
+            background: conic-gradient(
+                #3b82f6 0deg 60deg,
+                #8b5cf6 60deg 120deg,
+                #ec4899 120deg 180deg,
+                #f59e0b 180deg 240deg,
+                #10b981 240deg 300deg,
+                #6366f1 300deg 360deg
+            );
+        }
+
+        .pointer {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 20px solid #fff;
+            z-index: 10;
+        }
+
+        .spin-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .spin-btn:active {
+            transform: scale(0.98);
+        }
+
+        .spin-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        /* Modals / Menus */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            width: 85%;
+            max-width: 320px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        .instruction-box {
+            background: var(--bg-color);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 14px;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .instruction-box b {
+            color: var(--text-color);
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--text-secondary);
+            background: var(--bg-color);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            flex: 1;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 10px;
+            border-radius: 8px;
+            flex: 1;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #message {
+            margin-top: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header with Balance & Action Nav -->
+        <header>
+            <div>
+                <div class="balance-title">Balance</div>
+                <div class="balance-amount"><span id="balance">50.00</span> ETB</div>
+            </div>
+            <div class="nav-buttons">
+                <button class="btn-small" onclick="openModal('depositModal')">Deposit</button>
+                <button class="btn-small" onclick="openModal('withdrawModal')">Withdraw</button>
+            </div>
+        </header>
+
+        <!-- Game Box -->
+        <div class="game-card">
+            <h3>Spin & Win Birr</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 0;">Cost per spin: 5 ETB</p>
+            
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <div class="wheel" id="wheel"></div>
+            </div>
+
+            <button class="spin-btn" id="spinBtn" onclick="spinWheel()">SPIN NOW (5 ETB)</button>
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal" id="depositModal">
+        <div class="modal-content">
+            <h3>Deposit Birr</h3>
+            <div class="instruction-box">
+                <b>Payment Accounts:</b><br>
+                • <b>Telebirr:</b> 0963052077<br>
+                • <b>Sinqee Bank:</b> 1036696630101<br><br>
+                Transfer funds to one of the accounts above and submit your Transaction ID / Receipt info below for verification.
+            </div>
+            <div class="form-group">
+                <label>Select Payment Method</label>
+                <select id="depositMethod">
+                    <option value="telebirr">Telebirr (0963052077)</option>
+                    <option value="sinqee">Sinqee Bank (1036696630101)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount Sent (ETB)</label>
+                <input type="number" id="depositAmount" placeholder="e.g. 50" min="10">
+            </div>
+            <div class="form-group">
+                <label>Transaction ID / Receipt No</label>
+                <input type="text" id="depositTxId" placeholder="e.g. TXN12345678">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal('depositModal')">Cancel</button>
+                <button class="btn-primary" onclick="handleDeposit()">Submit Request</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <h3>Withdraw Birr</h3>
+            <div class="form-group">
+                <label>Select Payout Method</label>
+                <select id="withdrawMethod">
+                    <option value="telebirr">Telebirr</option>
+                    <option value="sinqee">Sinqee Bank</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Account / Phone Number</label>
+                <input type="text" id="withdrawAccount" placeholder="09xxxxxxxx or Account No">
+            </div>
+            <div class="form-group">
+                <label>Amount (ETB)</label>
+                <input type="number" id="withdrawAmount" placeholder="e.g. 50" min="20">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeModal('withdrawModal')">Cancel</button>
+                <button class="btn-primary" onclick="handleWithdraw()">Request</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp hooks if available
+        let tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.expand();
+        }
+
+        let balance = 50.00;
+        let currentRotation = 0;
+        let isSpinning = false;
+
+        // Possible rewards corresponding to wheel segments (6 segments)
+        const rewards = [0, 5, 10, 20, 50, 100];
+
+        function updateUI() {
+            document.getElementById('balance').innerText = balance.toFixed(2);
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function spinWheel() {
+            const spinCost = 5;
+            const messageEl = document.getElementById('message');
+
+            if (isSpinning) return;
+
+            if (balance < spinCost) {
+                messageEl.style.color = 'var(--danger)';
+                messageEl.innerText = 'Insufficient balance! Please deposit.';
+                return;
+            }
+
+            balance -= spinCost;
+            updateUI();
+            isSpinning = true;
+            document.getElementById('spinBtn').disabled = true;
+            messageEl.style.color = 'var(--text-color)';
+            messageEl.innerText = 'Spinning... Good luck!';
+
+            const prizeIndex = Math.floor(Math.random() * rewards.length);
+            const degreesPerSegment = 360 / rewards.length;
+            const extraRounds = 360 * 6;
+            const targetDegree = prizeIndex * degreesPerSegment;
+            const randomOffset = degreesPerSegment / 2; 
+            
+            currentRotation += extraRounds + (360 - (currentRotation % 360)) + (360 - (targetDegree + randomOffset));
+
+            const wheel = document.getElementById('wheel');
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
+
+            setTimeout(() => {
+                isSpinning = false;
+                document.getElementById('spinBtn').disabled = false;
+                const wonAmount = rewards[prizeIndex];
+                balance += wonAmount;
+                updateUI();
+
+                if (wonAmount > 0) {
+                    messageEl.style.color = 'var(--accent)';
+                    messageEl.innerText = `Congratulations! You won ${wonAmount} ETB! 🎉`;
+                } else {
+                    messageEl.style.color = 'var(--danger)';
+                    messageEl.innerText = 'Oops! Better luck next time.';
+                }
+            }, 4000);
+        }
+
+        function handleDeposit() {
+            const amount = parseFloat(document.getElementById('depositAmount').value);
+            const txId = document.getElementById('depositTxId').value;
+
+            if (!amount || amount <= 0 || !txId) {
+                alert('Please enter a valid amount and transaction reference ID.');
+                return;
+            }
+
+            // In a live system, this sends data to your backend bot to verify receipt.
+            closeModal('depositModal');
+            document.getElementById('depositAmount').value = '';
+            document.getElementById('depositTxId').value = '';
+            
+            const messageEl = document.getElementById('message');
+            messageEl.style.color = 'var(--accent)';
+            messageEl.innerText = 'Deposit submitted! Pending verification.';
+        }
+
+        function handleWithdraw() {
+            const amount = parseFloat(document.getElementById('withdrawAmount').value);
+            const account = document.getElementById('withdrawAccount').value;
+
+            if (!amount || amount <= 0 || !account) {
+                alert('Please fill in all withdrawal details properly.');
+                return;
+            }
+
+            if (amount > balance) {
+                alert('Withdrawal amount exceeds your current balance.');
+                return;
+            }
+
+            balance -= amount;
+            updateUI();
+            closeModal('withdrawModal');
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('withdrawAccount').value = '';
+            
+            const messageEl = document.getElementById('message');
+            messageEl.style.color = 'var(--accent)';
+            messageEl.innerText = `Withdrawal request of ${amount} ETB submitted!`;
+        }
+    </script>
+</body>
+</html>
